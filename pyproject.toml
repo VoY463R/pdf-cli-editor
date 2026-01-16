@@ -4,4 +4,15 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "loguru>=0.7.3",
+    "pymupdf>=1.26.7",
+    "pypdf2>=3.0.1",
+    "pyrefly>=0.48.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
+    "typer>=0.21.1",
+]
+
+[tool.pyrefly]
+search-path = ["src", ""]
