@@ -14,6 +14,12 @@ runner = CliRunner()
 
 @pytest.fixture
 def sample_pdfs(tmp_path) -> list[Path]:
+    """
+    Generate a set of two valid temporary PDF files for testing.
+
+    Each file contains a single page with unique text ("Sample PDF 1", "Sample PDF 2").
+    Used to verify merging logic and page order.
+    """
     pdf_paths: list[Path] = []
 
     for i in range(2):
@@ -32,11 +38,25 @@ def sample_pdfs(tmp_path) -> list[Path]:
 
 
 def get_pdf_page_count(pdf_file: Path) -> int:
+    """
+    Open a PDF file and return the total number of pages.
+
+    Args:
+        pdf_file: Path to the PDF document.
+    Returns:
+        The integer count of pages in the document.
+    """
     with pymupdf.open(str(pdf_file)) as doc:
         return len(doc)
 
 
 def creating_valid_pdf_file(tmp_path) -> Path:
+    """
+    Create a single, technically valid PDF file in the temporary directory.
+
+    Returns:
+        Path to the newly created PDF file.
+    """
     valid_pdf: Path = tmp_path / "valid.pdf"
     doc: Document = pymupdf.open()
     page = doc.new_page()
@@ -47,6 +67,12 @@ def creating_valid_pdf_file(tmp_path) -> Path:
 
 
 def test_merge_cli(sample_pdfs, tmp_path) -> None:
+    """
+    Test the 'merge' CLI command via Typer's CliRunner.
+
+    Verifies that passing multiple files and an output flag correctly
+    executes the command, returns exit code 0, and creates the expected file.
+    """
     output_file: Path = tmp_path / "merged.pdf"
     result: Result = runner.invoke(
         app, [str(sample_pdfs[0]), str(sample_pdfs[1]), "--output", str(output_file)]
@@ -57,12 +83,25 @@ def test_merge_cli(sample_pdfs, tmp_path) -> None:
 
 
 def test_merge_less_than_two_files(sample_pdfs) -> None:
+    """
+    Ensure that merge_pdf raises a ValueError if fewer than two files are provided.
+
+    This enforces the logical requirement that merging requires at least two inputs.
+    """
     file = sample_pdfs[0:1]
     with pytest.raises(ValueError, match="At least two PDF files are required"):
         merge_pdf(file)
 
 
 def test_merge_two_valid_pdfs_without_output(sample_pdfs) -> None:
+    """
+    Verify the default behavior of merge_pdf when no output path is specified.
+
+    Checks if:
+    1. The default filename is 'merged.pdf'.
+    2. The file is saved in the current working directory.
+    3. The content and page order are preserved correctly.
+    """
     files: list[Path] = sample_pdfs
     result: Path = merge_pdf(files)
 
@@ -86,6 +125,12 @@ def test_merge_two_valid_pdfs_without_output(sample_pdfs) -> None:
 
 
 def test_merge_two_valid_pdfs_with_output(sample_pdfs) -> None:
+    """
+    Check the output filename normalization logic.
+
+    Ensures that regardless of the provided extension (or lack thereof),
+    the resulting file always ends with '.pdf'.
+    """
     files: list[Path] = sample_pdfs
     result_without_pdf_ext: Path = merge_pdf(files, "output")
     assert result_without_pdf_ext.name == "output.pdf", (
@@ -99,6 +144,9 @@ def test_merge_two_valid_pdfs_with_output(sample_pdfs) -> None:
 
 
 def test_file_not_found(tmp_path, sample_pdfs: list[Path]) -> None:
+    """
+    Verify that FileNotFoundError is raised when a non-existent path is passed.
+    """
     files: list[Path] = sample_pdfs.copy()
     not_existing_file: Path = tmp_path / "not_exists.pdf"
     files.append(not_existing_file)
@@ -110,6 +158,9 @@ def test_file_not_found(tmp_path, sample_pdfs: list[Path]) -> None:
 
 
 def test_file_is_not_a_file(tmp_path, sample_pdfs: list[Path]) -> None:
+    """
+    Ensure a ValueError is raised if one of the provided paths is a directory.
+    """
     files: list[Path] = sample_pdfs.copy()
     dir_path: Path = tmp_path / "not_a_file"
     dir_path.mkdir()
@@ -120,6 +171,11 @@ def test_file_is_not_a_file(tmp_path, sample_pdfs: list[Path]) -> None:
 
 
 def test_merge_pdf_invalid_file_raises_runtime_error(tmp_path) -> None:
+    """
+    Test behavior when a file exists but is not a valid PDF (e.g., a text file).
+
+    Expected to raise a RuntimeError indicating the merge failed.
+    """
     files: list[Path] = []
     invalid_pdf: Path = tmp_path / "invalid.pdf"
     invalid_pdf.write_text("This is not a valid PDF file")
@@ -133,6 +189,9 @@ def test_merge_pdf_invalid_file_raises_runtime_error(tmp_path) -> None:
 
 
 def test_merge_pdf_corrupted_file_raises_runtime_error(tmp_path) -> None:
+    """
+    Test behavior when a file has a valid PDF header but contains corrupted binary data.
+    """
     files: list[Path]
     corrupted_pdf: Path = tmp_path / "corrupted.pdf"
     corrupted_pdf.write_bytes(b"%PDF-1.4\n" + b"garbage_data" * 100)
@@ -147,6 +206,11 @@ def test_merge_pdf_corrupted_file_raises_runtime_error(tmp_path) -> None:
 
 @patch("src.services.pdf_merge.pymupdf.open")
 def test_document_close_called(mock_open: Mock, sample_pdfs) -> None:
+    """
+    Confirm that the base PDF document is explicitly closed after a successful merge.
+
+    This is critical to prevent memory leaks and file locking issues.
+    """
     mock_base_pdf = MagicMock()
     mock_doc = MagicMock()
 
@@ -158,6 +222,9 @@ def test_document_close_called(mock_open: Mock, sample_pdfs) -> None:
 
 @patch("src.services.pdf_merge.pymupdf.open")
 def test_document_close_called_with_error(mock_open: Mock, sample_pdfs) -> None:
+    """
+    Ensure that document handles are closed even if an exception occurs during the merge.
+    """
     mock_base_pdf = MagicMock()
 
     mock_open.side_effect = [mock_base_pdf, RuntimeError("PDF merge failed")]

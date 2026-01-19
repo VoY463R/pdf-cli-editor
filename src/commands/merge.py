@@ -20,5 +20,11 @@ def merge(
         typer.Option("-o", "--output", help="Output PDF file (default: ./merged.pdf)"),
     ] = None,
 ) -> None:
+    """
+    Merge multiple PDF files into a single document.
+
+    Takes a list of PDF paths and combines them in the order they were provided.
+    If no output name is specified, it defaults to 'merged.pdf' in the current directory.
+    """
     output_path: Path = merge_pdf(files, output)
     print(output_path)
