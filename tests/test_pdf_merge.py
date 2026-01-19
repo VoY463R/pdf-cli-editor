@@ -1,10 +1,15 @@
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
 import pymupdf
 import pytest
 from pymupdf import Document, Page
+from typer.testing import CliRunner, Result
 
+from src.commands.merge import app
 from src.services.pdf_merge import merge_pdf
+
+runner = CliRunner()
 
 
 @pytest.fixture
@@ -39,6 +44,16 @@ def creating_valid_pdf_file(tmp_path) -> Path:
     doc.save(str(valid_pdf))
     doc.close()
     return valid_pdf
+
+
+def test_merge_cli(sample_pdfs, tmp_path) -> None:
+    output_file: Path = tmp_path / "merged.pdf"
+    result: Result = runner.invoke(
+        app, [str(sample_pdfs[0]), str(sample_pdfs[1]), "--output", str(output_file)]
+    )
+    assert result.exit_code == 0, f"Expected exit code = 0, got: {result.exit_code}"
+    assert output_file.exists()
+    assert str(output_file) in result.stdout
 
 
 def test_merge_less_than_two_files(sample_pdfs) -> None:
@@ -128,3 +143,25 @@ def test_merge_pdf_corrupted_file_raises_runtime_error(tmp_path) -> None:
 
     with pytest.raises(RuntimeError, match="PDF merge failed"):
         merge_pdf(files)
+
+
+@patch("src.services.pdf_merge.pymupdf.open")
+def test_document_close_called(mock_open: Mock, sample_pdfs) -> None:
+    mock_base_pdf = MagicMock()
+    mock_doc = MagicMock()
+
+    mock_open.side_effect = [mock_base_pdf, mock_doc]
+
+    merge_pdf(sample_pdfs)
+    mock_base_pdf.close.assert_called_once()
+
+
+@patch("src.services.pdf_merge.pymupdf.open")
+def test_document_close_called_with_error(mock_open: Mock, sample_pdfs) -> None:
+    mock_base_pdf = MagicMock()
+
+    mock_open.side_effect = [mock_base_pdf, RuntimeError("PDF merge failed")]
+
+    with pytest.raises(RuntimeError, match="PDF merge failed"):
+        merge_pdf(sample_pdfs)
+    mock_base_pdf.close.assert_called_once()
