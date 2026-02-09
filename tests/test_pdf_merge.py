@@ -43,8 +43,10 @@ def get_pdf_page_count(pdf_file: Path) -> int:
 
     Args:
         pdf_file: Path to the PDF document.
+
     Returns:
         The integer count of pages in the document.
+
     """
     with pymupdf.open(str(pdf_file)) as doc:
         return len(doc)
@@ -56,6 +58,7 @@ def creating_valid_pdf_file(tmp_path) -> Path:
 
     Returns:
         Path to the newly created PDF file.
+
     """
     valid_pdf: Path = tmp_path / "valid.pdf"
     doc: Document = pymupdf.open()
@@ -74,9 +77,7 @@ def test_merge_cli(sample_pdfs, tmp_path) -> None:
     executes the command, returns exit code 0, and creates the expected file.
     """
     output_file: Path = tmp_path / "merged.pdf"
-    result: Result = runner.invoke(
-        app, [str(sample_pdfs[0]), str(sample_pdfs[1]), "--output", str(output_file)]
-    )
+    result: Result = runner.invoke(app, [str(sample_pdfs[0]), str(sample_pdfs[1]), "--output", str(output_file)])
     assert result.exit_code == 0, f"Expected exit code = 0, got: {result.exit_code}"
     assert output_file.exists()
     assert str(output_file) in result.stdout
@@ -105,23 +106,20 @@ def test_merge_two_valid_pdfs_without_output(sample_pdfs) -> None:
     files: list[Path] = sample_pdfs
     result: Path = merge_pdf(files)
 
+    expected_number_of_pages: int = 2
     assert isinstance(result, Path), "Result is not an instance of Path"
     assert result.name == "merged.pdf", "Created file is not called merged.pdf"
     assert result.parent == Path.cwd(), "Parent path is not correct"
     assert result.exists(), "File does not exist"
     assert result.stat().st_size > 0, "Size of a file is equal 0"
-    assert get_pdf_page_count(result) == 2, (
-        f"Expected 2 pages, get {get_pdf_page_count(result)}"
-    )
+    assert get_pdf_page_count(result) == expected_number_of_pages, f"Expected 2 pages, get {get_pdf_page_count(result)}"
 
     with pymupdf.open(result) as doc:
         for i, page in enumerate(doc.pages()):
             expected_text: str = f"Sample PDF {i + 1}"
             actual_text: str = page.get_text().strip()
 
-            assert expected_text in actual_text, (
-                f"Expected text: {expected_text}, got {actual_text}"
-            )
+            assert expected_text in actual_text, f"Expected text: {expected_text}, got {actual_text}"
 
 
 def test_merge_two_valid_pdfs_with_output(sample_pdfs) -> None:
@@ -133,14 +131,10 @@ def test_merge_two_valid_pdfs_with_output(sample_pdfs) -> None:
     """
     files: list[Path] = sample_pdfs
     result_without_pdf_ext: Path = merge_pdf(files, "output")
-    assert result_without_pdf_ext.name == "output.pdf", (
-        f"Expected output.pdf, got {result_without_pdf_ext.name}"
-    )
+    assert result_without_pdf_ext.name == "output.pdf", f"Expected output.pdf, got {result_without_pdf_ext.name}"
 
     result_with_not_pdf_ext: Path = merge_pdf(files, "output.exe")
-    assert result_with_not_pdf_ext.name == "output.pdf", (
-        f"Expected output.pdf, got {result_with_not_pdf_ext.name}"
-    )
+    assert result_with_not_pdf_ext.name == "output.pdf", f"Expected output.pdf, got {result_with_not_pdf_ext.name}"
 
 
 def test_file_not_found(tmp_path, sample_pdfs: list[Path]) -> None:
@@ -151,9 +145,7 @@ def test_file_not_found(tmp_path, sample_pdfs: list[Path]) -> None:
     not_existing_file: Path = tmp_path / "not_exists.pdf"
     files.append(not_existing_file)
 
-    with pytest.raises(
-        FileNotFoundError, match=f"PDF file not found: {not_existing_file}"
-    ):
+    with pytest.raises(FileNotFoundError, match=f"PDF file not found: {not_existing_file}"):
         merge_pdf(files)
 
 
